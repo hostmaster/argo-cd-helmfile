@@ -9,7 +9,6 @@
 # HELMFILE_HELMFILE - a complete helmfile.yaml (ignores standard helmfile.yaml and helmfile.d if present based on strategy)
 # HELMFILE_HELMFILE_STRATEGY - REPLACE or INCLUDE
 # HELMFILE_INIT_SCRIPT_FILE - path to script to execute during the init phase
-# HELMFILE_ENV_FILE - path to env file (or anything) to source
 # HELMFILE_CACHE_CLEANUP - run helmfile cache cleanup on init
 # HELMFILE_REPO_CACHE_TIMEOUT - seconds to cache the repo update process
 # HELMFILE_USE_CONTEXT_NAMESPACE - do not set helmfile namespace to ARGOCD_APP_NAMESPACE (for multi-namespace apps)
@@ -202,16 +201,6 @@ if [[ "${HELMFILE_INIT_SCRIPT_FILE}" ]]; then
   HELMFILE_INIT_SCRIPT_FILE=$(variable_expansion "${HELMFILE_INIT_SCRIPT_FILE}")
 fi
 
-: "${HELMFILE_ENV_FILE:=".argo-cd-helmfile-env"}"
-if [[ "${HELMFILE_ENV_FILE}" ]]; then
-  HELMFILE_ENV_FILE=$(variable_expansion "${HELMFILE_ENV_FILE}")
-fi
-
-if [[ -f "${HELMFILE_ENV_FILE}" ]]; then
-  echoerr "sourcing env file: ${HELMFILE_ENV_FILE}"
-  source "${HELMFILE_ENV_FILE}"
-fi
-
 if [[ "${HELM_CACHE_HOME}" ]]; then
   export HELM_CACHE_HOME=$(variable_expansion "${HELM_CACHE_HOME}")
 fi
@@ -259,7 +248,7 @@ else
   helmfile="$(which helmfile)"
 fi
 
-echoerr "helm version $(${helm} version --short --client)"
+echoerr "$(${helm} version --short --client)"
 echoerr "$(${helmfile} --version)"
 
 helmfile="${helmfile} --helm-binary ${helm} --no-color --allow-no-matching-release"
@@ -313,23 +302,12 @@ case $phase in
 
       case "${HELMFILE_HELMFILE_STRATEGY}" in
         "INCLUDE")
-
-          count=0
-
-          [[ -f "helmfile.yaml" ]] && ((count++))
-          [[ -f "helmfile.yaml.gotmpl" ]] && ((count++))
-          [[ -d "helmfile.d" ]] && ((count++))
-
-          if [[ $count -gt 1 ]]; then
-            echoerr "You can have either helmfile.yaml, helmfile.yaml.gotmpl, or helmfile.d, but not more than one"
+          if [[ -f "helmfile.yaml" && -d "helmfile.d" ]]; then
+            echoerr "configuration conlict error: you can have either helmfile.yaml or helmfile.d, but not both"
           fi
 
           if [[ -f "helmfile.yaml" ]]; then
             cp -a "helmfile.yaml" "${HELMFILE_HELMFILE_HELMFILED}/"
-          fi
-
-          if [[ -f "helmfile.yaml.gotmpl" ]]; then
-            cp -a "helmfile.yaml.gotmpl" "${HELMFILE_HELMFILE_HELMFILED}/"
           fi
 
           if [[ -d "helmfile.d" ]]; then
@@ -353,22 +331,22 @@ case $phase in
     fi
 
     if [ ! -z "${HELMFILE_INIT_SCRIPT_FILE}" ]; then
+      echoerr "Running init custom script."
       HELMFILE_INIT_SCRIPT_FILE=$(realpath "${HELMFILE_INIT_SCRIPT_FILE}")
       bash "${HELMFILE_INIT_SCRIPT_FILE}"
     fi
 
     # using app revision here to ensure if the git repo is updated the cache is busted
     cache_key="plugin-${phase}-repos-${ARGOCD_APP_REVISION}"
-
-    if cache_is_expired "${cache_key}" "${HELMFILE_REPO_CACHE_TIMEOUT}"; then
+    cache_is_expired "${cache_key}" "${HELMFILE_REPO_CACHE_TIMEOUT}" && {
       # https://github.com/roboll/helmfile/issues/1064
       ${helmfile} repos
       cache_set_time "${cache_key}"
       # TODO: fetch here?
       #${helmfile} fetch
-    else
+    } || {
       echoerr "skipping repos update due to cache"
-    fi
+    }
     ;;
 
   "generate")
@@ -418,15 +396,12 @@ case $phase in
     ${helmfile} \
       template \
       --skip-deps ${INTERNAL_HELMFILE_TEMPLATE_OPTIONS} \
-      --args "${INTERNAL_HELM_TEMPLATE_OPTIONS} ${HELM_TEMPLATE_OPTIONS}" \
+#      --args "${INTERNAL_HELM_TEMPLATE_OPTIONS} ${HELM_TEMPLATE_OPTIONS}" \
       ${HELMFILE_TEMPLATE_OPTIONS}
     ;;
 
   "discover")
-    # https://github.com/argoproj/argo-cd/issues/4831
-    # discovery by default is not executed in the ARGOCD_APP_SOURCE_PATH
-    # discovery broken in 2.7.4
-    if [[ ! -z "${HELMFILE_DISCOVERY_RESPONSE}" ]]; then
+    if [[ ! -z "${HELMFILE_DISCOVERY_RESPONSE}" ]];then
       truthy_test "${HELMFILE_DISCOVERY_RESPONSE}" && {
         echo "forced discovery response: enabled"
         exit 0
@@ -436,12 +411,12 @@ case $phase in
       }
     fi
 
-    if [[ "${HELMFILE_GLOBAL_OPTIONS}" == *--file* ]]; then
+    if [[ "${HELMFILE_GLOBAL_OPTIONS}" == *--file* ]];then
       echo "custom file path provided, assumed proper"
       exit 0
     fi
 
-    if [[ "${HELMFILE_GLOBAL_OPTIONS}" == *-f* ]]; then
+    if [[ "${HELMFILE_GLOBAL_OPTIONS}" == *-f* ]];then
       echo "custom file path provided, assumed proper"
       exit 0
     fi
@@ -450,35 +425,16 @@ case $phase in
       echo "complete helmfile provided, assumed proper"
       exit 0
     fi
-
-    if [[ -f "helmfile.yaml" ]]; then
+    
+    test -n "$(find . -type d -name "helmfile.d")" && {
       echo "valid helmfile content discovered"
       exit 0
-    fi
-
-    if [[ -f "helmfile.yaml.gotmpl" ]]; then
+    }
+    test -n "$(find . -type f -name "helmfile.yaml")" && {
       echo "valid helmfile content discovered"
       exit 0
-    fi
-
-    if [[ -d "helmfile.d" ]]; then
-      echo "valid helmfile content discovered"
-      exit 0
-    fi
-
-    # provides false positive if --file or -f is omitted
-    #test -n "$(find . -type d -name "helmfile.d")" && {
-    #  echo "valid helmfile content discovered"
-    #  exit 0
-    #}
-
-    # provides false positive if --file or -f is omitted
-    #test -n "$(find . -type f -name "helmfile.yaml")" && {
-    #  echo "valid helmfile content discovered"
-    #  exit 0
-    #}
-
-    echo "no valid helmfile content discovered"
+    }
+    echoerr "no valid helmfile content discovered"
     exit 1
     ;;
 
