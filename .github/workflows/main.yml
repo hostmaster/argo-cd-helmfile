@@ -1,7 +1,3 @@
-# https://docs.github.com/en/free-pro-team@latest/actions/reference/context-and-expression-syntax-for-github-actions#github-context
-# https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-syntax-for-github-actions#jobsjob_idif
-# https://github.community/t/how-to-get-just-the-tag-name/16241/10
-
 name: CI
 
 on:
@@ -10,18 +6,16 @@ on:
       - "v*"
     branches:
       - master
-      - next
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: cancel previous runs
-        uses: styfle/cancel-workflow-action@0.6.0
-        with:
-          access_token: ${{ github.token }}
-
       - uses: actions/checkout@v2
 
       - name: docker build
