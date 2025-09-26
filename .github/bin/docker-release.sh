@@ -3,11 +3,11 @@
 echo "$DOCKER_PASSWORD" | docker login         -u "$DOCKER_USERNAME" --password-stdin
 echo "$GHCR_PASSWORD"   | docker login ghcr.io -u "$GHCR_USERNAME"   --password-stdin
 
-export DOCKER_ORG="travisghansen"
+export DOCKER_ORG="hostmaster"
 export DOCKER_PROJECT="argo-cd-helmfile"
 export DOCKER_REPO="${DOCKER_ORG}/${DOCKER_PROJECT}"
 
-export GHCR_ORG="travisghansen"
+export GHCR_ORG="hostmaster"
 export GHCR_PROJECT="argo-cd-helmfile"
 export GHCR_REPO="ghcr.io/${GHCR_ORG}/${GHCR_PROJECT}"
 
