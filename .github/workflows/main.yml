@@ -42,10 +42,9 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
           tags: |
             type=ref,event=tag
+            type=ref,event=branch
             type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value={{version}},enable={{is_tag}}
-            type=raw,value={{date}},pattern={{date 'YYYYMMDD'}}
+            type=schedule,pattern={{date 'YYYYMMDD'}}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
