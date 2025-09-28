@@ -43,7 +43,7 @@ jobs:
           tags: |
             type=ref,event=tag
             type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=sha-
             type=schedule,pattern={{date 'YYYYMMDD'}}
 
       - name: Set up Docker Buildx
