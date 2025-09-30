@@ -8,7 +8,7 @@ ARG BASE_IMAGE=docker.io/library/ubuntu:24.04
 
 FROM $BASE_IMAGE
 
-LABEL org.opencontainers.image.source https://github.com/travisghansen/argo-cd-helmfile
+LABEL org.opencontainers.image.source https://github.com/hostmaster/argo-cd-helmfile
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV ARGOCD_USER_ID=999
@@ -34,48 +34,6 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
   chown argocd:0 /home/argocd && \
   chmod g=u /home/argocd
 
-# aws
-# https://www.educative.io/collection/page/6630002/6521965765984256/6553354502668288
-#
-#ARG INSTALL_AWS_TOOLS
-#RUN apt-get update && apt-get install --no-install-recommends -y \
-#    awscli \
-#    && \
-#    apt-get clean && \
-#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# az cli
-# https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt
-#
-#ARG INSTALL_AZURE_TOOLS
-#RUN apt-get update && apt-get install --no-install-recommends -y \
-#    ca-certificates curl apt-transport-https lsb-release gnupg \
-#    && \
-#    mkdir -p /etc/apt/keyrings && \
-#    curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | tee /etc/apt/keyrings/microsoft.gpg > /dev/null && \
-#    chmod go+r /etc/apt/keyrings/microsoft.gpg && \
-#    AZ_REPO=$(lsb_release -cs) && \
-#    echo "deb [arch=`dpkg --print-architecture` signed-by=/etc/apt/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $AZ_REPO main" | tee /etc/apt/sources.list.d/azure-cli.list && \
-#    apt-get update && apt-get install --no-install-recommends -y \
-#    azure-cli && \
-#    apt-get clean && \
-#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-
-# gcloud cli
-# https://cloud.google.com/sdk/docs/install#deb
-#
-#ARG INSTALL_GCLOUD_TOOLS
-#RUN apt-get update && apt-get install --no-install-recommends -y \
-#    apt-transport-https ca-certificates gnupg \
-#    && \
-#    echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list && \
-#    curl https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key --keyring /usr/share/keyrings/cloud.google.gpg add - && \
-#    apt-get update && apt-get install --no-install-recommends -y \
-#    google-cloud-cli && \
-#    apt-get clean && \
-#    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
 # binary versions
 # https://github.com/FiloSottile/age/releases
 ARG AGE_VERSION="v1.2.0"
@@ -100,7 +58,6 @@ ARG KUBECTL_VERSION="v1.32.5"
 # https://github.com/kubernetes-sigs/krew/releases/
 ARG KREW_VERSION="v0.4.5"
 
-# wget -qO "/usr/local/bin/jq"       "https://github.com/stedolan/jq/releases/download/jq-${JQ_VERSION}/jq-linux64" && \
 RUN \
   GO_ARCH=$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/') && \
   wget -qO-                          "https://get.helm.sh/helm-${HELM2_VERSION}-linux-${GO_ARCH}.tar.gz" | tar zxv --strip-components=1 -C /tmp linux-${GO_ARCH}/helm && mv /tmp/helm /usr/local/bin/helm-v2 && \
